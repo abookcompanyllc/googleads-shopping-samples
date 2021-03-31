@@ -1,17 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\CommonSettings.xml" />
-  
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-    <RootNamespace>Orders</RootNamespace>
-    <AssemblyName>Google.Shopping.Orders.Samples</AssemblyName>
-    <Description>Samples for Order services in the Google Content API for Shopping</Description>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors />
+    <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\source\Authenticator.cs" />
@@ -28,6 +19,5 @@
     <PackageReference Include="Google.Apis.ShoppingContent.v2_1" Version="1.42.0.1790" />
     <PackageReference Include="log4net" Version="2.0.8" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.2" />
   </ItemGroup>
 </Project>

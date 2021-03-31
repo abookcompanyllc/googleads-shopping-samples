@@ -4,6 +4,8 @@ using Google.Apis.Services;
 using Google.Apis.ShoppingContent.v2_1.Data;
 using System.Collections.Generic;
 using CommandLine;
+using System.Data.SqlClient;
+using System.Data;
 
 namespace ShoppingSamples.Content
 {
@@ -33,125 +35,97 @@ namespace ShoppingSamples.Content
             this.prng = new Random();
         }
 
+
         internal override void runCalls()
         {
             var merchantId = config.MerchantId.Value;
 
-            // First, we create a new test order using the template1 template.  Normally, orders
-            // would be automatically populated by Google in the non-sandbox version, and we'd
-            // skip ahead to find out what orders are currently waiting for our acknowledgment.
-            Console.WriteLine("=================================================================");
-            Console.WriteLine("Creating Test Order for {0}", merchantId);
-            Console.WriteLine("=================================================================");
-
+            #region create test order
+            /* 
             string orderId;
             {
                 var req = new OrdersCreateTestOrderRequest();
                 req.TemplateName = "template1";
                 var resp = sandboxService.Orders.Createtestorder(req, merchantId).Execute();
                 orderId = resp.OrderId;
-            }
+            }*/
+            #endregion
 
-            Console.WriteLine("Order created with ID {0}", orderId);
-            Console.WriteLine();
-
+            #region Get all Unacknowledged orders, then Acknowledge them (so we dont pull them again)
             // List all unacknowledged orders.  In normal usage, this is where we'd get new
             // order IDs to operate on.  We should see the new test order show up here.
-            //ListAllUnacknowledgedOrders(merchantId);
 
-            // Acknowledge the newly created order.  The assumption in doing so is that we've
-            // collected the information for this order into our own internal system, and
-            // acknowledging it allows us to skip it when searching for new orders (see
-            // ListAllUnacknowledgedOrders()).
-            Acknowledge(merchantId, orderId);
-
-            // We'll use random numbers for a few things that would normally be supplied by
-            // various systems, like the order IDs for the merchant's internal systems, the
-            // shipping IDs for the merchant's internal systems, and the tracking ID we'd get
-            // from the shipping carriers.
-            string merchantOrderId = prng.Next().ToString();
-            UpdateMerchantOrderId(merchantId, orderId, merchantOrderId);
-
-            // Print out the current status of the order (and store a reference to the resource
-            // so we can pull stuff out of it shortly).
-            var currentOrder = GetOrderByMerchantOrderId(merchantId, merchantOrderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
-
-            // Oops, not enough stock for all the Chromecasts ordered, so we cancel one of them.
+            try
             {
-                var req = new OrdersCancelLineItemRequest();
-                req.LineItemId = currentOrder.LineItems[0].Id;
-                req.Quantity = 1;
-                req.Reason = "noInventory";
-                req.ReasonText = "Ran out of inventory while fulfilling request.";
-                req.OperationId = NewOperationId();
-
-                CancelLineItem(merchantId, orderId, req);
+                ListAllUnacknowledgedOrders(merchantId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
             }
 
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
 
-            // At this point we'll advance the test order, which simulates the point at which
-            // an order is no longer cancelable by the customer and the order information reflects
-            // that the order is ready for shipping.
-            Console.WriteLine("=================================================================");
-            Console.WriteLine("Advancing Test Order {0}", orderId);
-            Console.WriteLine("=================================================================");
-            sandboxService.Orders.Advancetestorder(merchantId, orderId).Execute();
-            Console.WriteLine();
+            //This can stay commented out, i use it in "ListAllUnacknowledgedOrders" after i save the item to our DB
+            //Acknowledge(merchantId, "TEST-4149-52-565222222");
+            #endregion
 
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
+            #region print specific order
+            //var currentOrder = GetOrder(merchantId, "TEST-7467-39-2793");
+            //PrintOrder(currentOrder);
+            #endregion
 
-            // To simulate partial fulfillment, we'll pick the first line item and ship the
-            // still-pending amount. (Remember, we cancelled one already.)
-            var shipItem1Req = ShipAllLineItem(merchantId, orderId, currentOrder.LineItems[0]);
-
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
-
-            // Now we ship the rest.
-            var shipItem2Req = ShipAllLineItem(merchantId, orderId, currentOrder.LineItems[1]);
-
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
-
-            // Customer receives the first item, so we notify Google that it was delivered.
-            LineItemDelivered(merchantId, orderId, shipItem1Req);
-
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
-
-            // Customer receives second item.
-            LineItemDelivered(merchantId, orderId, shipItem2Req);
-
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
-
-            // Turns out one of the first items was broken when the customer received it, so
-            // they returned it.  Let's make sure Google knows about it and why.
+            
+            #region CancelLineItem
+            try
             {
-                var req = new OrdersReturnRefundLineItemRequest();
-                req.LineItemId = currentOrder.LineItems[0].Id;
-                req.Quantity = 1;
-                req.Reason = "productArrivedDamaged";
-                req.ReasonText = "Item broken at receipt.";
-                req.OperationId = NewOperationId();
+                {
+                    /*
+                    var currentOrder = GetOrder(merchantId, "TEST-5244-09-7823");
+                    var req = new OrdersCancelLineItemRequest();
+                    req.LineItemId = "3HAOTRA7HNCZEXP";
+                    req.Quantity = 2;
+                    req.Reason = "noInventory";
+                    req.ReasonText = "Ran out of inventory while fulfilling request.";
+                    req.OperationId = prng.Next().ToString();
 
-                LineItemReturned(merchantId, orderId, req);
+                    CancelLineItem(merchantId, "TEST-5244-09-7823", req);
+                    */
+                }
+            }
+            catch (Exception ex) {
+                Console.WriteLine(ex.ToString());
             }
 
-            currentOrder = GetOrder(merchantId, orderId);
-            PrintOrder(currentOrder);
-            Console.WriteLine();
+            #endregion
+
+            #region adding shipping number
+            try
+            {
+                //var currentOrder = GetOrder(merchantId, "TEST-5328-88-5002");
+                //PrintOrder(currentOrder);
+                //var shipItem1Req = ShipAllLineItem(merchantId, currentOrder.Id, currentOrder.LineItems[1], "1Z2222222", "1Z2222222");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            #endregion
+
+            #region update order to status delivered
+            try
+            {
+                //var currentOrder = GetOrder(merchantId, "TEST-5328-88-5002");
+                //PrintOrder(currentOrder);
+                //LineItemDelivered(merchantId, currentOrder.Id, "1Z2222222");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            #endregion
+
+
+            Console.ReadKey();
         }
 
         /// <summary>
@@ -166,7 +140,7 @@ namespace ShoppingSamples.Content
 
 
             Order status = sandboxService.Orders.Get(merchantId, orderId).Execute();
-            Console.WriteLine();
+            
 
             return status;
         }
@@ -214,6 +188,7 @@ namespace ShoppingSamples.Content
                     foreach (var order in ordersResponse.Resources)
                     {
                         PrintOrder(order);
+                        SaveOrder(order);
                     }
                 }
                 else
@@ -282,7 +257,7 @@ namespace ShoppingSamples.Content
         }
 
         private OrdersShipLineItemsRequest ShipAllLineItem(ulong merchantId, string orderId,
-            OrderLineItem item)
+            OrderLineItem item, string shipmentID, string TrackingID)
         {
             Console.WriteLine("=================================================================");
             Console.WriteLine("Shipping {0} of item {1}", item.QuantityPending, item.Id);
@@ -295,13 +270,13 @@ namespace ShoppingSamples.Content
             var req = new OrdersShipLineItemsRequest();
             var shipmentInfo = new OrdersCustomBatchRequestEntryShipLineItemsShipmentInfo();
             shipmentInfo.Carrier = item.ShippingDetails.Method.Carrier;
-            shipmentInfo.ShipmentId = prng.Next().ToString();
-            shipmentInfo.TrackingId = prng.Next().ToString();
+            shipmentInfo.ShipmentId = shipmentID;
+            shipmentInfo.TrackingId = TrackingID;
             req.ShipmentInfos = new List<OrdersCustomBatchRequestEntryShipLineItemsShipmentInfo>();
             req.ShipmentInfos.Add(shipmentInfo);
             req.LineItems = new List<OrderShipmentLineItemShipment>();
             req.LineItems.Add(itemShip);
-            req.OperationId = NewOperationId();
+            req.OperationId = prng.Next().ToString();
 
             var resp = sandboxService.Orders.Shiplineitems(req, merchantId, orderId).Execute();
 
@@ -314,6 +289,22 @@ namespace ShoppingSamples.Content
         }
 
         private void LineItemDelivered(ulong merchantId, string orderId,
+            string shipmentID)
+        {
+           
+            var req = new OrdersUpdateShipmentRequest();
+            //req.Carrier = ship.Shipments[0].Carrier;
+            //req.TrackingId = "1z";
+            req.ShipmentId = shipmentID;
+            req.Status = "delivered";
+            req.OperationId = prng.Next().ToString();
+
+            var resp = sandboxService.Orders.Updateshipment(req, merchantId, orderId).Execute();
+
+            Console.WriteLine("Finished with status {0}.", resp.ExecutionStatus);
+            Console.WriteLine();
+        }
+        private void LineItemDelivered_OLD(ulong merchantId, string orderId,
             OrdersShipLineItemsRequest ship)
         {
             Console.WriteLine("=================================================================");
@@ -333,7 +324,6 @@ namespace ShoppingSamples.Content
             Console.WriteLine("Finished with status {0}.", resp.ExecutionStatus);
             Console.WriteLine();
         }
-
         private void LineItemReturned(ulong merchantId, string orderId,
             OrdersReturnRefundLineItemRequest req)
         {
@@ -350,10 +340,19 @@ namespace ShoppingSamples.Content
 
         private void PrintOrder(Order order)
         {
+            Console.WriteLine();
             Console.WriteLine("Order {0}:", order.Id);
             Console.WriteLine("- Status: {0}", order.Status);
             Console.WriteLine("- Merchant: {0}", order.MerchantId);
             Console.WriteLine("- Merchant order ID: {0}", order.MerchantOrderId);
+            Console.WriteLine("Ship Address: {0}", order.DeliveryDetails.Address.StreetAddress[0]);
+            //Console.WriteLine("Ship Address2: {0}", order.DeliveryDetails.Address.StreetAddress[1]);
+            //Console.WriteLine("Delivery Detail Address: {0}", order.DeliveryDetails.Address.StreetAddress[0]);
+            Console.WriteLine("Ship City: {0}", order.DeliveryDetails.Address.Locality);
+            Console.WriteLine("Ship State: {0}", order.DeliveryDetails.Address.Region);
+            Console.WriteLine("Ship Zip: {0}", order.DeliveryDetails.Address.PostalCode);
+            Console.WriteLine("Ship Country: {0}", order.DeliveryDetails.Address.Country);
+
             if (order.Customer != null)
             {
                 Console.WriteLine("- Customer information:");
@@ -411,6 +410,26 @@ namespace ShoppingSamples.Content
                 }
             }
         }
+
+        private void SaveOrder(Order order)
+        {
+            var merchantId = config.MerchantId.Value;
+
+            if (order.LineItems != null && order.LineItems.Count > 0)
+            {
+                //Console.WriteLine("- {0} line item(s):", order.LineItems.Count);
+                foreach (var item in order.LineItems)
+                {
+                    PrintOrderLineItem(item);
+
+                    insertOrderInfo(item, order);
+                    Acknowledge(merchantId, order.Id);
+                    
+                }
+            }
+           
+        }
+
 
         private void PrintIfNonzero(long? l, string s)
         {
@@ -482,6 +501,80 @@ namespace ShoppingSamples.Content
                     Console.WriteLine("    - Reason text: {0}", ret.ReasonText);
                 }
             }
+        }
+
+        private static void insertOrderInfo(OrderLineItem item, Order order)
+        {
+
+
+            SqlConnection objConn = new SqlConnection();
+            SqlCommand objCmd = new SqlCommand();
+
+            try
+            {
+                objConn.ConnectionString = "Data Source=cat_db1; Initial Catalog=abookprod; Persist Security Info=True; User ID=ssis; Password=passw0rd; application name=eCampus";
+                objConn.Open();
+
+                objCmd.Connection = objConn;
+                objCmd.CommandText = "uspIns_tblGoogleOrderDump";
+                objCmd.CommandType = CommandType.StoredProcedure;
+                objCmd.CommandTimeout = 100;
+
+                objCmd.Parameters.Add("@order_Id", SqlDbType.VarChar, 100).Value = order.Id;
+                objCmd.Parameters.Add("@order_Status", SqlDbType.VarChar, 100).Value = order.Status;
+                objCmd.Parameters.Add("@order_MerchantId", SqlDbType.VarChar, 100).Value = order.MerchantId;
+                objCmd.Parameters.Add("@order_MerchantOrderId", SqlDbType.VarChar, 100).Value = order.MerchantOrderId;
+                objCmd.Parameters.Add("@order_Customer_FullName", SqlDbType.VarChar, 100).Value = order.Customer.FullName;
+                objCmd.Parameters.Add("@order_PlacedDate", SqlDbType.VarChar, 100).Value = order.PlacedDate;
+                objCmd.Parameters.Add("@order_NetPriceAmount_Value", SqlDbType.VarChar, 100).Value = order.NetPriceAmount.Value;
+                objCmd.Parameters.Add("@order_NetPriceAmount_Currency", SqlDbType.VarChar, 100).Value = order.NetPriceAmount.Currency;
+                objCmd.Parameters.Add("@order_PaymentStatus", SqlDbType.VarChar, 100).Value = order.PaymentStatus;
+                objCmd.Parameters.Add("@order_ShippingCost_Value", SqlDbType.VarChar, 100).Value = order.ShippingCost.Value;
+                objCmd.Parameters.Add("@order_ShippingCost_Currency", SqlDbType.VarChar, 100).Value = order.ShippingCost.Currency;
+                objCmd.Parameters.Add("@order_ShippingCostTax_Value", SqlDbType.VarChar, 100).Value = order.ShippingCostTax.Value;
+                objCmd.Parameters.Add("@order_ShippingCostTax_Currency", SqlDbType.VarChar, 100).Value = order.ShippingCostTax.Currency;
+                objCmd.Parameters.Add("@item_Id", SqlDbType.VarChar, 100).Value = item.Id;
+                objCmd.Parameters.Add("@item_Product_Id", SqlDbType.VarChar, 100).Value = item.Product.Id;
+                objCmd.Parameters.Add("@item_Product_Title", SqlDbType.VarChar, 100).Value = item.Product.Title;
+                objCmd.Parameters.Add("@item_Price_Value", SqlDbType.VarChar, 100).Value = item.Price.Value;
+                objCmd.Parameters.Add("@item_Price_Currency", SqlDbType.VarChar, 100).Value = item.Price.Currency;
+                objCmd.Parameters.Add("@item_Tax_Value", SqlDbType.VarChar, 100).Value = item.Tax.Value;
+                objCmd.Parameters.Add("@item_Tax_Currency", SqlDbType.VarChar, 100).Value = item.Tax.Currency;
+                objCmd.Parameters.Add("@item_ShippingDetails_ShipByDate", SqlDbType.VarChar, 100).Value = item.ShippingDetails.ShipByDate;
+                objCmd.Parameters.Add("@item_ShippingDetails_DeliverByDate", SqlDbType.VarChar, 100).Value = item.ShippingDetails.DeliverByDate;
+                objCmd.Parameters.Add("@item_ShippingDetails_Method_Carrier", SqlDbType.VarChar, 100).Value = item.ShippingDetails.Method.Carrier;
+                objCmd.Parameters.Add("@item_ShippingDetails_Method_MethodName", SqlDbType.VarChar, 100).Value = item.ShippingDetails.Method.MethodName;
+                objCmd.Parameters.Add("@item_ShippingDetails_Method_MinDaysInTransit", SqlDbType.VarChar, 100).Value = item.ShippingDetails.Method.MinDaysInTransit;
+                objCmd.Parameters.Add("@item_ShippingDetails_Method_MaxDaysInTransit", SqlDbType.VarChar, 100).Value = item.ShippingDetails.Method.MaxDaysInTransit;
+                objCmd.Parameters.Add("@item_QuantityOrdered", SqlDbType.VarChar, 100).Value = item.QuantityOrdered;
+                objCmd.Parameters.Add("@Shipping_Address", SqlDbType.VarChar, 100).Value = order.BillingAddress.StreetAddress[0];
+                objCmd.Parameters.Add("@Shipping_Address2", SqlDbType.VarChar, 100).Value = order.BillingAddress.StreetAddress[1];
+                objCmd.Parameters.Add("@Shipping_City", SqlDbType.VarChar, 100).Value = order.BillingAddress.Locality;
+                objCmd.Parameters.Add("@Shipping_State", SqlDbType.VarChar, 100).Value = order.BillingAddress.Region;
+                objCmd.Parameters.Add("@Shipping_Zip", SqlDbType.VarChar, 100).Value = order.BillingAddress.PostalCode;
+                objCmd.Parameters.Add("@Shipping_Country", SqlDbType.VarChar, 100).Value = order.BillingAddress.Country;
+
+
+
+                objCmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                //sendEmail(" Error in insertOrderInfo()\r\n\r\n" + ex.ToString(), ConfigurationManager.AppSettings["EmailFrom"].ToString(), ConfigurationManager.AppSettings["EmailTo"].ToString(), "Error in insertOrderInfo()");
+            }
+            finally
+            {
+                if (objConn != null)
+                    objConn.Close();
+
+                objCmd.Dispose();
+                objConn.Dispose();
+
+                objCmd = null;
+                objConn = null;
+            }
+
         }
     }
 }
